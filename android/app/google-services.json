@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "558787402213",
+    "project_id": "checklist-app-5e228",
+    "storage_bucket": "checklist-app-5e228.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:558787402213:android:9de06597b484ad1197770c",
+        "android_client_info": {
+          "package_name": "com.example.checklist"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "558787402213-t3sfe4kfjpiq7hk6eoe5dt6jgfdqq1db.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAURDqsGl5gcS7nf4qhbRFmNXqVTHTTalU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "558787402213-t3sfe4kfjpiq7hk6eoe5dt6jgfdqq1db.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

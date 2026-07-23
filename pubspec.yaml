@@ -1,0 +1,28 @@
+name: checklist
+description: Flutter recreation of the Problem Target Checklist web app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  shared_preferences: 2.5.5
+  url_launcher: ^6.3.0
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  flutter_local_notifications: ^17.2.4
+  wakelock_plus: ^1.7.0
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
