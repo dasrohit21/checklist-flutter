@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'providers/app_state.dart';
+import 'providers/coach_provider.dart';
 import 'providers/planner_provider.dart';
 import 'screens/home_screen.dart';
 
@@ -22,6 +23,7 @@ class ChecklistApp extends StatelessWidget {
         // PlannerProvider is independent of AppState — runs carry-forward
         // check on startup via load().
         ChangeNotifierProvider(create: (_) => PlannerProvider()..load()),
+        ChangeNotifierProvider(create: (_) => CoachProvider()..load()),
       ],
       child: MaterialApp(
         title: 'Problem Target Checklist',

@@ -18,6 +18,11 @@ class PlannerMissionCard extends StatelessWidget {
   /// Only shown on non-completed entries.
   final VoidCallback? onMoveToTomorrow;
 
+  /// Quick Action callbacks for reordering & moving
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+  final VoidCallback? onMoveToToday;
+
   const PlannerMissionCard({
     super.key,
     required this.entry,
@@ -25,6 +30,9 @@ class PlannerMissionCard extends StatelessWidget {
     this.onTap,
     this.onRemove,
     this.onMoveToTomorrow,
+    this.onMoveUp,
+    this.onMoveDown,
+    this.onMoveToToday,
   });
 
   @override
@@ -170,11 +178,13 @@ class PlannerMissionCard extends StatelessWidget {
     );
   }
 
-  // ── Footer: duration + status chip + optional move button ────────────────
+  // ── Footer: duration + status chip + optional move/quick action buttons ────
 
   Widget _buildFooter() {
     final canMove = onMoveToTomorrow != null &&
         entry.status != PlannerEntryStatus.completed;
+    final hasQuickActions =
+        onMoveUp != null || onMoveDown != null || onMoveToToday != null;
 
     return Row(
       children: [
@@ -187,6 +197,15 @@ class PlannerMissionCard extends StatelessWidget {
         const Spacer(),
         if (canMove) ...[
           _MoveToTomorrowButton(onTap: onMoveToTomorrow!),
+          const SizedBox(width: 8),
+        ],
+        if (hasQuickActions) ...[
+          _QuickActionsToolbar(
+            onMoveUp: onMoveUp,
+            onMoveDown: onMoveDown,
+            onMoveToToday: onMoveToToday,
+            onRemove: onRemove,
+          ),
           const SizedBox(width: 8),
         ],
         _buildStatusChip(),
@@ -311,3 +330,107 @@ class _MoveToTomorrowButton extends StatelessWidget {
     );
   }
 }
+
+// ── Quick Actions Toolbar ────────────────────────────────────────────────────
+
+/// Inline button group for reordering (Move Up, Move Down) and transferring (Move to Today, Remove).
+class _QuickActionsToolbar extends StatelessWidget {
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+  final VoidCallback? onMoveToToday;
+  final VoidCallback? onRemove;
+
+  const _QuickActionsToolbar({
+    this.onMoveUp,
+    this.onMoveDown,
+    this.onMoveToToday,
+    this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onMoveUp != null)
+          _actionBtn(
+            icon: Icons.arrow_upward_rounded,
+            tooltip: 'Move Up',
+            onTap: onMoveUp,
+          ),
+        if (onMoveDown != null)
+          _actionBtn(
+            icon: Icons.arrow_downward_rounded,
+            tooltip: 'Move Down',
+            onTap: onMoveDown,
+          ),
+        if (onMoveToToday != null)
+          _actionBtn(
+            icon: Icons.today_rounded,
+            label: '← Today',
+            tooltip: 'Move to Today',
+            onTap: onMoveToToday,
+            color: AppTheme.accent,
+          ),
+        if (onRemove != null && (onMoveUp != null || onMoveToToday != null))
+          _actionBtn(
+            icon: Icons.close_rounded,
+            tooltip: 'Remove from Plan',
+            onTap: onRemove,
+            color: AppTheme.danger,
+          ),
+      ],
+    );
+  }
+
+  Widget _actionBtn({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onTap,
+    String? label,
+    Color? color,
+  }) {
+    final themeColor = color ?? AppTheme.textMuted;
+    final isEnabled = onTap != null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
+        onTap: isEnabled ? onTap : null,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: themeColor.withValues(alpha: isEnabled ? 0.12 : 0.05),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: themeColor.withValues(alpha: isEnabled ? 0.25 : 0.1),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 13,
+                color: isEnabled ? themeColor : themeColor.withValues(alpha: 0.3),
+              ),
+              if (label != null) ...[
+                const SizedBox(width: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isEnabled ? themeColor : themeColor.withValues(alpha: 0.3),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

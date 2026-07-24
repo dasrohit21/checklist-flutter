@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/theme/app_theme.dart';
+import '../models/coach_message.dart';
+import '../models/coach_personality.dart';
 import '../models/mission_context.dart';
 import '../models/mission.dart';
 import '../models/planner_entry.dart';
 import '../models/planning_summary.dart';
+import '../models/recovery_plan.dart';
 import '../models/target_item.dart';
 import '../providers/app_state.dart';
+import '../providers/coach_provider.dart';
 import '../providers/planner_provider.dart';
 import '../services/planner_service.dart';
 import '../widgets/planner_mission_card.dart';
+import 'coach_settings_screen.dart';
 
 /// The daily command-center screen.
 ///
@@ -33,7 +38,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
     // Ensure data is fresh whenever the screen becomes active.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<PlannerProvider>().refresh();
+        final planner = context.read<PlannerProvider>();
+        planner.refresh().then((_) {
+          if (mounted) {
+            context.read<CoachProvider>().evaluate(planner);
+          }
+        });
       }
     });
   }
@@ -72,7 +82,32 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                   ),
 
-                  // ── 0. Daily Summary ──────────────────────────────────────────────
+                  // ── 0. Coach Card ────────────────────────────────────────────────
+                  Consumer<CoachProvider>(
+                    builder: (context, coach, _) {
+                      if (!coach.isEnabled || coach.currentMessage == null) {
+                        return const SliverToBoxAdapter(
+                            child: SizedBox.shrink());
+                      }
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                          child: _CoachCard(
+                            message: coach.currentMessage!,
+                            personality: coach.personality,
+                            onOpenSettings: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CoachSettingsScreen(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // ── 0.5. Daily Summary ──────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -83,6 +118,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       ),
                     ),
                   ),
+
+                  // ── 0.5. Recovery Plan ───────────────────────────────────
+                  if (planner.shouldShowRecoveryCard)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                        child: _RecoveryCard(planner: planner),
+                      ),
+                    ),
 
                   // ── 1. Continue Mission ──────────────────────────────────
                   if (appState.activeMission != null &&
@@ -191,9 +235,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         count: planner.tomorrowEntries.length,
                         iconColor: AppTheme.feature,
                         readOnly: true,
+                        sublabel: 'recommended order',
                       ),
                     ),
                   ),
+
+                  // Smart Overflow Warning ("Tomorrow Looks Busy")
+                  if (planner.isTomorrowOverflowed)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+                        child: _TomorrowLooksBusyCard(planner: planner),
+                      ),
+                    ),
+
                   if (planner.tomorrowEntries.isEmpty)
                     const SliverToBoxAdapter(
                       child: Padding(
@@ -214,7 +269,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
                             return PlannerMissionCard(
                               key: ValueKey(entry.id),
                               entry: entry,
-                              // Tomorrow cards are read-only.
+                              onMoveUp: index > 0
+                                  ? () => planner.moveTomorrowEntryUp(entry.id)
+                                  : null,
+                              onMoveDown: index < planner.tomorrowEntries.length - 1
+                                  ? () => planner.moveTomorrowEntryDown(entry.id)
+                                  : null,
+                              onMoveToToday: () =>
+                                  planner.moveTomorrowEntryToToday(entry.id),
+                              onRemove: () =>
+                                  planner.removeTomorrowEntry(entry.id),
                             );
                           },
                           childCount: planner.tomorrowEntries.length,
@@ -340,6 +404,7 @@ class _SectionHeader extends StatelessWidget {
   final Widget? action;
   final Color? iconColor;
   final bool readOnly;
+  final String? sublabel;
 
   const _SectionHeader({
     required this.icon,
@@ -348,6 +413,7 @@ class _SectionHeader extends StatelessWidget {
     this.action,
     this.iconColor,
     this.readOnly = false,
+    this.sublabel,
   });
 
   @override
@@ -383,7 +449,13 @@ class _SectionHeader extends StatelessWidget {
               ),
             ),
           ),
-        if (readOnly) ...[
+        if (sublabel != null) ...[
+          const SizedBox(width: 6),
+          Text(
+            '($sublabel)',
+            style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+          ),
+        ] else if (readOnly) ...[
           const SizedBox(width: 6),
           Text(
             '(read-only)',
@@ -1458,7 +1530,35 @@ class _DailySummaryCard extends StatelessWidget {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: _PlanningSummaryRow(summary: summary),
+            child: Row(
+              children: [
+                Expanded(child: _PlanningSummaryRow(summary: summary)),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    side: BorderSide(
+                        color: AppTheme.warning.withValues(alpha: 0.4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: Icon(Icons.auto_fix_high_rounded,
+                      size: 14, color: AppTheme.warning),
+                  label: Text(
+                    'Recover',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.warning,
+                    ),
+                  ),
+                  onPressed: () => planner.generateRecoveryPlan(force: true),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -1809,3 +1909,434 @@ class _AvailableTimeSheetState extends State<_AvailableTimeSheet> {
     );
   }
 }
+
+// ── v1.3: Recovery Plan Card ──────────────────────────────────────────────────
+
+/// Card displaying the interactive Recovery Plan suggestion.
+class _RecoveryCard extends StatelessWidget {
+  final PlannerProvider planner;
+
+  const _RecoveryCard({required this.planner});
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = planner.recoveryPlan;
+    if (plan == null) return const SizedBox.shrink();
+
+    final remainingWorkloadH = plan.remainingWorkloadMinutes ~/ 60;
+    final remainingWorkloadM = plan.remainingWorkloadMinutes % 60;
+    final remainingWorkloadLabel = remainingWorkloadM == 0
+        ? '${remainingWorkloadH}h'
+        : '${remainingWorkloadH}h ${remainingWorkloadM}m';
+
+    final remainingTimeH = plan.remainingAvailableMinutes ~/ 60;
+    final remainingTimeM = plan.remainingAvailableMinutes % 60;
+    final remainingTimeLabel = remainingTimeM == 0
+        ? '${remainingTimeH}h'
+        : '${remainingTimeH}h ${remainingTimeM}m';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.warning.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.warning.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.auto_fix_high_rounded,
+                    color: AppTheme.warning, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Recovery Plan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.text,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.warning.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Recommended',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Workload vs Available time summary
+          Row(
+            children: [
+              Expanded(
+                child: _metricBox(
+                  'Remaining Work',
+                  remainingWorkloadLabel,
+                  AppTheme.danger,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _metricBox(
+                  'Available Time',
+                  remainingTimeLabel,
+                  AppTheme.accent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          Text(
+            'Recommended Adjustments:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Recommendations List
+          ...plan.items.map((item) {
+            final isKeep = item.action == RecoveryItemAction.keep;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    isKeep
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: isKeep ? AppTheme.success : AppTheme.warning,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isKeep
+                          ? '✓ Finish ${item.entry.targetName}'
+                          : '→ Move ${item.entry.targetName} to Tomorrow',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isKeep ? AppTheme.text : AppTheme.warning,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 16),
+
+          // Action Buttons: Accept / Dismiss
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: AppTheme.border.withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => planner.dismissRecoveryPlan(),
+                  child: Text(
+                    'Dismiss',
+                    style: TextStyle(
+                      color: AppTheme.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.warning,
+                    foregroundColor: const Color(0xFF030712),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () async {
+                    await planner.applyRecoveryPlan();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Recovery Plan applied successfully!',
+                            style: TextStyle(color: AppTheme.text),
+                          ),
+                          backgroundColor: AppTheme.surface,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text(
+                    'Accept',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricBox(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── v1.4: Tomorrow Looks Busy Card ───────────────────────────────────────────
+
+/// Smart overflow warning card displayed in Tomorrow Preview when tomorrow's
+/// estimated workload exceeds available working hours.
+class _TomorrowLooksBusyCard extends StatelessWidget {
+  final PlannerProvider planner;
+
+  const _TomorrowLooksBusyCard({required this.planner});
+
+  @override
+  Widget build(BuildContext context) {
+    final workloadM = planner.tomorrowWorkloadMinutes;
+    final workloadH = workloadM ~/ 60;
+    final remainingM = workloadM % 60;
+    final workloadLabel = remainingM == 0
+        ? '${workloadH}h'
+        : '${workloadH}h ${remainingM}m';
+
+    final availableM = planner.availableMinutes;
+    final availableH = availableM ~/ 60;
+    final availableRemM = availableM % 60;
+    final availableLabel = availableRemM == 0
+        ? '${availableH}h'
+        : '${availableH}h ${availableRemM}m';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_busy_rounded,
+                  color: AppTheme.warning, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Tomorrow Looks Busy',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.warning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textMuted,
+                height: 1.4,
+              ),
+              children: [
+                const TextSpan(text: 'Tomorrow contains approximately '),
+                TextSpan(
+                  text: workloadLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.warning,
+                  ),
+                ),
+                const TextSpan(text: ' of work. Your available time is '),
+                TextSpan(
+                  text: availableLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.text,
+                  ),
+                ),
+                const TextSpan(text: '.'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── v1.5: Coach Engine Card ───────────────────────────────────────────────────
+
+/// Lightweight card displaying the fact-based observation from the Coach Engine.
+class _CoachCard extends StatelessWidget {
+  final CoachMessage message;
+  final CoachPersonality personality;
+  final VoidCallback onOpenSettings;
+
+  const _CoachCard({
+    required this.message,
+    required this.personality,
+    required this.onOpenSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppTheme.accent.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(personality.icon, color: AppTheme.accent, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Coach · ${personality.displayName}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.accent,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onOpenSettings,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.settings_outlined,
+                      size: 14, color: AppTheme.accent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message.body,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.text,
+              height: 1.4,
+            ),
+          ),
+          if (message.actionRecommendation.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                message.actionRecommendation,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accent,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+

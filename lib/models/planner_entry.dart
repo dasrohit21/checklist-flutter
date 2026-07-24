@@ -19,6 +19,9 @@ class PlannerEntry {
   /// True when this entry was automatically moved from a previous day.
   final bool isCarryForward;
 
+  /// Priority level: "high", "normal", or "low"
+  final String priority;
+
   const PlannerEntry({
     required this.id,
     required this.targetId,
@@ -27,6 +30,7 @@ class PlannerEntry {
     required this.estimatedDurationMinutes,
     this.status = PlannerEntryStatus.pending,
     this.isCarryForward = false,
+    this.priority = 'normal',
   });
 
   // ── Serialisation ──────────────────────────────────────────────────────────
@@ -39,6 +43,7 @@ class PlannerEntry {
         'estimatedDurationMinutes': estimatedDurationMinutes,
         'status': status.name,
         'isCarryForward': isCarryForward,
+        'priority': priority,
       };
 
   factory PlannerEntry.fromJson(Map<String, dynamic> json) => PlannerEntry(
@@ -52,6 +57,7 @@ class PlannerEntry {
           orElse: () => PlannerEntryStatus.pending,
         ),
         isCarryForward: json['isCarryForward'] as bool? ?? false,
+        priority: json['priority'] as String? ?? 'normal',
       );
 
   // ── Mutation ───────────────────────────────────────────────────────────────
@@ -62,6 +68,7 @@ class PlannerEntry {
     int? estimatedDurationMinutes,
     PlannerEntryStatus? status,
     bool? isCarryForward,
+    String? priority,
   }) {
     return PlannerEntry(
       id: id,
@@ -72,6 +79,7 @@ class PlannerEntry {
           estimatedDurationMinutes ?? this.estimatedDurationMinutes,
       status: status ?? this.status,
       isCarryForward: isCarryForward ?? this.isCarryForward,
+      priority: priority ?? this.priority,
     );
   }
 }
