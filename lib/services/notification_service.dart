@@ -15,12 +15,9 @@ class NotificationService {
         const initSettings = InitializationSettings(android: androidSettings);
         await _plugin.initialize(initSettings);
         _initialized = true;
-      } else if (Platform.isWindows) {
-        // flutter_local_notifications has windows support in newer versions but requires native configurations.
-        // We initialize it within a try-catch block to guarantee safety.
-        const initSettings = InitializationSettings();
-        await _plugin.initialize(initSettings);
-        _initialized = true;
+      } else {
+        // Desktop platforms (Windows/Linux/macOS) log notifications without plugin exceptions
+        _initialized = false;
       }
     } catch (e) {
       debugPrint('[NotificationService] Initialization failed: $e');
@@ -34,7 +31,7 @@ class NotificationService {
   }) async {
     try {
       if (kIsWeb) return;
-      if (Platform.isAndroid) {
+      if (Platform.isAndroid && _initialized) {
         const androidDetails = AndroidNotificationDetails(
           'checklist_reminders',
           'Checklist Reminders',
@@ -45,14 +42,8 @@ class NotificationService {
         const details = NotificationDetails(android: androidDetails);
         await _plugin.show(id, title, body, details);
       } else {
-        // Fallback for Windows or other platforms in case they fail plugin check
-        // Or if plugin is initialized, we trigger it.
-        if (_initialized) {
-          const details = NotificationDetails();
-          await _plugin.show(id, title, body, details);
-        } else {
-          debugPrint('[NotificationService] Not initialized. Notification: $title - $body');
-        }
+        // Desktop fallback: debugPrint notification safely without throwing LateInitializationError
+        debugPrint('[NotificationService] Notification: $title - $body');
       }
     } catch (e) {
       debugPrint('[NotificationService] Show failed: $e');
