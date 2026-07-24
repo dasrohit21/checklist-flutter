@@ -11,7 +11,9 @@ import '../models/planning_summary.dart';
 import '../models/recovery_plan.dart';
 import '../models/target_item.dart';
 import '../providers/app_state.dart';
+import '../providers/behavior_provider.dart';
 import '../providers/coach_provider.dart';
+import '../providers/learning_provider.dart';
 import '../providers/planner_provider.dart';
 import '../services/planner_service.dart';
 import '../widgets/planner_mission_card.dart';
@@ -43,6 +45,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
         planner.refresh().then((_) {
           if (mounted) {
             context.read<CoachProvider>().evaluate(planner);
+            final learning = context.read<LearningProvider>();
+            context.read<BehaviorProvider>().evaluate(
+                  history: learning.dailyHistory,
+                  todayEntries: planner.todayEntries,
+                  tomorrowEntries: planner.tomorrowEntries,
+                );
           }
         });
       }
@@ -102,6 +110,24 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                 builder: (_) => const CoachSettingsScreen(),
                               ),
                             ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // ── 0.2. Behavior Recommendation Card ────────────────────
+                  Consumer<BehaviorProvider>(
+                    builder: (context, behavior, _) {
+                      if (behavior.recommendations.isEmpty) {
+                        return const SliverToBoxAdapter(
+                            child: SizedBox.shrink());
+                      }
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                          child: _BehaviorRecommendationCard(
+                            recommendation: behavior.recommendations.first,
                           ),
                         ),
                       );
@@ -2347,5 +2373,70 @@ class _CoachCard extends StatelessWidget {
     );
   }
 }
+
+// ── v1.7: Behavior Intelligence Recommendation Card ───────────────────────────
+
+/// Lightweight card displaying a behavior-based recommendation in the Planner.
+class _BehaviorRecommendationCard extends StatelessWidget {
+  final String recommendation;
+
+  const _BehaviorRecommendationCard({required this.recommendation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.feature.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.feature.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.recommend_rounded,
+                color: AppTheme.feature, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Behavioral Recommendation',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                    color: AppTheme.feature,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  recommendation,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.text,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 

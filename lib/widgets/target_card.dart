@@ -8,6 +8,8 @@ import '../core/theme/app_theme.dart';
 import '../models/target_item.dart';
 import '../providers/app_state.dart';
 import '../models/category_item.dart';
+import '../models/mission_behavior_analysis.dart';
+import '../providers/behavior_provider.dart';
 import 'highlight_text.dart';
 import 'mission_setup_sheet.dart';
 
@@ -276,6 +278,40 @@ class _TargetCardState extends State<TargetCard> {
                                 style: TextStyle(color: Color(category.colorValue), fontSize: 10, fontWeight: FontWeight.bold),
                               ),
                             ),
+                          // Mission Health badge
+                          Consumer<BehaviorProvider>(
+                            builder: (context, behavior, _) {
+                              final analysis = behavior.getHealthForTarget(widget.item.id);
+                              if (analysis == null) return const SizedBox.shrink();
+                              final status = analysis.healthStatus;
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: status.color.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: status.color.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(status.icon, size: 10, color: status.color),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        status.displayName,
+                                        style: TextStyle(
+                                          color: status.color,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),

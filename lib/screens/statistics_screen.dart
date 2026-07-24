@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/theme/app_theme.dart';
+import '../models/mission_behavior_analysis.dart';
+import '../providers/behavior_provider.dart';
 import '../providers/learning_provider.dart';
 
 /// Clean Statistics & Learning Engine screen.
@@ -305,10 +307,168 @@ class StatisticsScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // ── 5. Behavior Intelligence & Mission Health ──────────────────
+              Consumer<BehaviorProvider>(
+                builder: (context, behavior, _) {
+                  final recs = behavior.recommendations;
+                  final healthMap = behavior.missionHealthMap;
+
+                  int excellent = 0, good = 0, warning = 0, critical = 0;
+                  healthMap.forEach((_, analysis) {
+                    switch (analysis.healthStatus) {
+                      case MissionHealthStatus.excellent:
+                        excellent++;
+                        break;
+                      case MissionHealthStatus.good:
+                        good++;
+                        break;
+                      case MissionHealthStatus.warning:
+                        warning++;
+                        break;
+                      case MissionHealthStatus.critical:
+                        critical++;
+                        break;
+                    }
+                  });
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'MISSION HEALTH OVERVIEW',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: AppTheme.border.withValues(alpha: 0.15)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _HealthBadgeChip(
+                                label: 'Excellent',
+                                count: excellent,
+                                color: AppTheme.success),
+                            _HealthBadgeChip(
+                                label: 'Good',
+                                count: good,
+                                color: AppTheme.accent),
+                            _HealthBadgeChip(
+                                label: 'Warning',
+                                count: warning,
+                                color: AppTheme.warning),
+                            _HealthBadgeChip(
+                                label: 'Critical',
+                                count: critical,
+                                color: AppTheme.danger),
+                          ],
+                        ),
+                      ),
+                      if (recs.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        Text(
+                          'BEHAVIORAL RECOMMENDATIONS',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.1,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...recs.map((rec) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppTheme.feature.withValues(alpha: 0.3),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.recommend_rounded,
+                                    color: AppTheme.feature, size: 18),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    rec,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.text,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _HealthBadgeChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+
+  const _HealthBadgeChip({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+        ),
+      ],
     );
   }
 }
