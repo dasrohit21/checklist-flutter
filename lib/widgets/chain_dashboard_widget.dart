@@ -21,10 +21,10 @@ class ChainDashboardWidget extends StatelessWidget {
         ? chain.items[chain.currentMissionIndex]
         : null;
 
-    final remainingMissions = chain.items.length - chain.completedMissionsCount;
     final estimatedTimeRemainingMinutes = chain.items
         .skip(chain.currentMissionIndex)
         .fold(0, (sum, item) => sum + item.estimatedDurationMinutes);
+
 
     return Container(
       padding: const EdgeInsets.all(20),

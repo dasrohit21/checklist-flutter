@@ -1086,9 +1086,8 @@ class AppState extends ChangeNotifier {
     );
 
     _activeChain = null;
-    if (_activeMission != null) {
-      await clearActiveMission();
-    }
+    _activeMission = null;
+    await _saveActiveMission();
 
     await ChainStorageService.saveChains(_chains);
     await ChainStorageService.saveHistory(_chainHistory);
@@ -1214,11 +1213,6 @@ class AppState extends ChangeNotifier {
     _celebratingChain = null;
     notifyListeners();
   }
-
-  Future<void> resetTarget(String id) async {
-
-
-
 
   Future<void> resetTarget(String id) async {
     final index = _targets.indexWhere((item) => item.id == id);

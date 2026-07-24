@@ -11,8 +11,11 @@ import '../widgets/target_card.dart';
 import '../services/pdf_export_service.dart';
 import 'calendar_screen.dart';
 import 'dashboard_screen.dart';
+import 'planner_screen.dart';
 import 'settings_screen.dart';
 import 'mission_screen.dart';
+import 'mission_chains_screen.dart';
+import 'chain_completion_screen.dart';
 
 
 enum TargetFilter { all, active, completed, archived, overdue }
@@ -39,22 +42,30 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Builder(
               builder: (context) {
                 final appState = Provider.of<AppState>(context);
+                if (appState.celebratingChain != null) {
+                  return ChainCompletionScreen(chain: appState.celebratingChain!);
+                }
                 if (appState.activeMission != null) {
                   return const MissionScreen();
                 }
                 
                 final List<Widget> screens = [
                   const DashboardScreen(),
-                  const HomeContent(),
-                  const SettingsScreen(),
+                  const PlannerScreen(),       // index 1 — Execution Planner
+                  const HomeContent(),          // index 2 — Targets
+                  const MissionChainsScreen(),  // index 3 — Chains
+                  const SettingsScreen(),       // index 4 — Settings
                 ];
 
 
                 final List<String> titles = [
                   'Dashboard',
+                  'Planner',
                   'Problem Target Checklist',
+                  'Mission Chains',
                   'Settings',
                 ];
+
 
                 return Focus(
                   autofocus: true,
@@ -144,9 +155,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           label: 'Dashboard',
                         ),
                         BottomNavigationBarItem(
+                          icon: Icon(Icons.view_timeline_outlined),
+                          activeIcon: Icon(Icons.view_timeline_rounded),
+                          label: 'Planner',
+                        ),
+                        BottomNavigationBarItem(
                           icon: Icon(Icons.check_box_outlined),
                           activeIcon: Icon(Icons.check_box),
                           label: 'Targets',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.link_outlined),
+                          activeIcon: Icon(Icons.link),
+                          label: 'Chains',
                         ),
                         BottomNavigationBarItem(
                           icon: Icon(Icons.settings_outlined),
