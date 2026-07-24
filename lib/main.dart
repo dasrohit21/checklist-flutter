@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/app_state.dart';
 import 'providers/coach_provider.dart';
+import 'providers/learning_provider.dart';
 import 'providers/planner_provider.dart';
 import 'screens/home_screen.dart';
 
@@ -24,6 +25,7 @@ class ChecklistApp extends StatelessWidget {
         // check on startup via load().
         ChangeNotifierProvider(create: (_) => PlannerProvider()..load()),
         ChangeNotifierProvider(create: (_) => CoachProvider()..load()),
+        ChangeNotifierProvider(create: (_) => LearningProvider()..load()),
       ],
       child: MaterialApp(
         title: 'Problem Target Checklist',

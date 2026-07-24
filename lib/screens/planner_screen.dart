@@ -16,6 +16,7 @@ import '../providers/planner_provider.dart';
 import '../services/planner_service.dart';
 import '../widgets/planner_mission_card.dart';
 import 'coach_settings_screen.dart';
+import 'statistics_screen.dart';
 
 /// The daily command-center screen.
 ///
@@ -387,6 +388,14 @@ class _PlannerHeader extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Statistics & Insights',
+              icon: Icon(Icons.analytics_outlined, color: AppTheme.accent),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StatisticsScreen()),
               ),
             ),
           ],
