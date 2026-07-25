@@ -30,7 +30,7 @@ class ChecklistApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BehaviorProvider()..load()),
       ],
       child: MaterialApp(
-        title: 'Problem Target Checklist',
+        title: 'Execution OS',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.buildTheme(),
         home: const HomeScreen(),

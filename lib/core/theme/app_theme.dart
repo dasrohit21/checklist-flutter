@@ -193,6 +193,64 @@ class AppTheme {
     );
   }
 
+  // ── Spacing System ────────────────────────────────────────────────────────
+  static const double sp8  = 8;
+  static const double sp12 = 12;
+  static const double sp16 = 16;
+  static const double sp24 = 24;
+  static const double sp32 = 32;
+
+  // ── Typography Scale ──────────────────────────────────────────────────────
+  static const TextStyle displayStyle = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.5,
+  );
+  static const TextStyle headingStyle = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+  );
+  static const TextStyle titleStyle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+  );
+  static const TextStyle subtitleStyle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w500,
+    height: 1.4,
+  );
+  static const TextStyle bodyStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+  );
+  static const TextStyle captionStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+    letterSpacing: 0.1,
+  );
+  static const TextStyle buttonStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.2,
+  );
+  static const TextStyle labelStyle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1.0,
+  );
+
+  // ── Semantic Color Aliases ─────────────────────────────────────────────────
+  /// Alias for accent — the primary interactive blue.
+  static Color get primary => accent;
+
+  /// Purple — used for learning/insights sections.
+  static Color get learning => feature;
+
   static Color typeColor(String type) {
     switch (type) {
       case 'bug':
