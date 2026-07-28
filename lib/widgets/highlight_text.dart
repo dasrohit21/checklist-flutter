@@ -1,6 +1,28 @@
 import 'package:flutter/material.dart';
 
-/// Returns a [Text] widget with every occurrence of [query] (case-insensitive)
+/// A [StatelessWidget] that renders [text] with every occurrence of [query]
+/// (case-insensitive) highlighted in the accent colour.
+///
+/// Falls back to a plain [Text] when [query] is empty or not found.
+class HighlightText extends StatelessWidget {
+  const HighlightText({
+    super.key,
+    required this.text,
+    required this.query,
+    required this.style,
+  });
+
+  final String text;
+  final String query;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return buildHighlightedText(text, query, style);
+  }
+}
+
+/// Returns a [Widget] with every occurrence of [query] (case-insensitive)
 /// visually highlighted in the accent colour.
 ///
 /// Falls back to a plain [Text] when [query] is empty or not found.

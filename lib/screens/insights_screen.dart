@@ -170,7 +170,7 @@ class _LearningTab extends StatelessWidget {
 
             // Category durations
             if (stats.avgCategoryDurationMinutes.isNotEmpty) ...[
-              _SectionLabel(label: 'AVERAGE MISSION DURATION'),
+              const _SectionLabel(label: 'AVERAGE MISSION DURATION'),
               const SizedBox(height: AppTheme.sp12),
               _SurfaceCard(
                 child: Column(
@@ -183,7 +183,7 @@ class _LearningTab extends StatelessWidget {
             ],
 
             // Recovery usage
-            _SectionLabel(label: 'RECOVERY USAGE'),
+            const _SectionLabel(label: 'RECOVERY USAGE'),
             const SizedBox(height: AppTheme.sp12),
             _SurfaceCard(
               child: Row(
@@ -238,7 +238,7 @@ class _LearningTab extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SectionLabel(label: 'MISSION HEALTH'),
+                    const _SectionLabel(label: 'MISSION HEALTH'),
                     const SizedBox(height: AppTheme.sp12),
                     _SurfaceCard(
                       child: Row(
@@ -303,7 +303,7 @@ class _ProductivityTab extends StatelessWidget {
           padding: const EdgeInsets.all(AppTheme.sp24),
           children: [
             // Level & XP
-            _SectionLabel(label: 'PRODUCTIVITY TIER'),
+            const _SectionLabel(label: 'PRODUCTIVITY TIER'),
             const SizedBox(height: AppTheme.sp12),
             _SurfaceCard(
               child: Row(
@@ -350,7 +350,7 @@ class _ProductivityTab extends StatelessWidget {
             const SizedBox(height: AppTheme.sp24),
 
             // Streaks
-            _SectionLabel(label: 'MISSION STREAKS'),
+            const _SectionLabel(label: 'MISSION STREAKS'),
             const SizedBox(height: AppTheme.sp12),
             _SurfaceCard(
               child: Row(
@@ -381,7 +381,7 @@ class _ProductivityTab extends StatelessWidget {
             const SizedBox(height: AppTheme.sp24),
 
             // Focus stats grid
-            _SectionLabel(label: 'FOCUS ANALYTICS'),
+            const _SectionLabel(label: 'FOCUS ANALYTICS'),
             const SizedBox(height: AppTheme.sp12),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -406,7 +406,7 @@ class _ProductivityTab extends StatelessWidget {
             const SizedBox(height: AppTheme.sp24),
 
             // Achievements
-            _SectionLabel(label: 'ACHIEVEMENTS'),
+            const _SectionLabel(label: 'ACHIEVEMENTS'),
             const SizedBox(height: AppTheme.sp12),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -480,10 +480,10 @@ class _ProductivityTab extends StatelessWidget {
             const SizedBox(height: AppTheme.sp24),
 
             // Mission history
-            _SectionLabel(label: 'MISSION HISTORY'),
+            const _SectionLabel(label: 'MISSION HISTORY'),
             const SizedBox(height: AppTheme.sp12),
             if (history.isEmpty)
-              _EmptyInsightState(
+              const _EmptyInsightState(
                 icon: Icons.history_rounded,
                 message: 'No missions completed yet.\nLaunch a mission to begin.',
               )

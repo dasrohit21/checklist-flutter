@@ -14,6 +14,8 @@ import '../models/mission_chain_statistics.dart';
 import '../services/notification_service.dart';
 import '../services/chain_storage_service.dart';
 import '../services/chain_statistics_service.dart';
+import '../services/mission_history_service.dart';
+import '../models/mission_timeline_event.dart';
 import '../models/mission_history_item.dart';
 import '../models/achievement.dart';
 import 'package:flutter/material.dart';
@@ -532,6 +534,25 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> reorderChecklistItems(int oldIndex, int newIndex, String type) async {
+    final typeItems = _checklistItems.where((item) => item.type == type).toList();
+    if (oldIndex < 0 || oldIndex >= typeItems.length) return;
+    if (newIndex < 0 || newIndex > typeItems.length) return;
+    if (oldIndex < newIndex) newIndex -= 1;
+
+    final item = typeItems.removeAt(oldIndex);
+    typeItems.insert(newIndex, item);
+
+    // Reconstruct full list keeping order
+    final otherItems = _checklistItems.where((i) => i.type != type).toList();
+    _checklistItems.clear();
+    _checklistItems.addAll(typeItems);
+    _checklistItems.addAll(otherItems);
+
+    await _saveChecklist();
+    notifyListeners();
+  }
+
   // ── Target mutations ───────────────────────────────────────────────────────
   Future<void> addTarget(
     String title,
@@ -557,6 +578,11 @@ class AppState extends ChangeNotifier {
     );
     _targets.add(item);
     await _saveTargets();
+    await MissionHistoryService.recordEvent(
+      targetId: item.id,
+      type: MissionTimelineEventType.created,
+      description: 'Mission "${item.title}" created.',
+    );
     notifyListeners();
   }
 
@@ -725,8 +751,14 @@ class AppState extends ChangeNotifier {
         if (_activeChain != null) {
           await _handleChainMissionCompletion();
         }
+
+        await _saveActiveMission();
+        await MissionHistoryService.recordEvent(
+          targetId: current.id,
+          type: MissionTimelineEventType.completed,
+          description: 'Mission "${current.title}" completed!',
+        );
       }
-      await _saveActiveMission();
     }
 
     notifyListeners();
@@ -756,6 +788,11 @@ class AppState extends ChangeNotifier {
     );
     await _saveActiveMission();
     await _saveMissionStats();
+    await MissionHistoryService.recordEvent(
+      targetId: targetId,
+      type: MissionTimelineEventType.started,
+      description: 'Mission started.',
+    );
     notifyListeners();
   }
 
@@ -773,6 +810,11 @@ class AppState extends ChangeNotifier {
       interruptionCount: _activeMission!.interruptionCount + 1,
     );
     await _saveActiveMission();
+    await MissionHistoryService.recordEvent(
+      targetId: _activeMission!.targetId,
+      type: MissionTimelineEventType.paused,
+      description: 'Mission paused.',
+    );
     notifyListeners();
   }
 
@@ -783,6 +825,11 @@ class AppState extends ChangeNotifier {
       lastResumeTime: DateTime.now(),
     );
     await _saveActiveMission();
+    await MissionHistoryService.recordEvent(
+      targetId: _activeMission!.targetId,
+      type: MissionTimelineEventType.resumed,
+      description: 'Mission resumed.',
+    );
     notifyListeners();
   }
 
@@ -1299,9 +1346,14 @@ class AppState extends ChangeNotifier {
     final index = _targets.indexWhere((item) => item.id == id);
     if (index == -1) return;
     _archivedTargets.add(_targets[index]);
-    _targets.removeAt(index);
+    final archived = _targets.removeAt(index);
     await _saveTargets();
     await _saveArchive();
+    await MissionHistoryService.recordEvent(
+      targetId: archived.id,
+      type: MissionTimelineEventType.archived,
+      description: 'Mission "${archived.title}" archived.',
+    );
     notifyListeners();
   }
 

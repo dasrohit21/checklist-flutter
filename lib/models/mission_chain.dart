@@ -148,6 +148,16 @@ class MissionChain {
       status == ChainStatus.failed ||
       status == ChainStatus.abandoned;
 
+  /// Alias for [name] — provided for backward compatibility.
+  String get title => name;
+
+  /// All target IDs referenced in this chain's items.
+  List<String> get targetIds => items.map((i) => i.targetId).toList();
+
+  /// Target IDs of items that have been completed.
+  List<String> get completedTargetIds =>
+      items.where((i) => i.isCompleted).map((i) => i.targetId).toList();
+
   MissionChain copyWith({
     String? id,
     String? name,

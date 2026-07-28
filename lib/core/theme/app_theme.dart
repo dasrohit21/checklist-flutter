@@ -195,8 +195,11 @@ class AppTheme {
 
   // ── Spacing System ────────────────────────────────────────────────────────
   static const double sp8  = 8;
+  static const double sp10 = 10;
   static const double sp12 = 12;
+  static const double sp14 = 14;
   static const double sp16 = 16;
+  static const double sp20 = 20;
   static const double sp24 = 24;
   static const double sp32 = 32;
 
