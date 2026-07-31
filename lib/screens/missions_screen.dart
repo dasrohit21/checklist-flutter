@@ -45,7 +45,7 @@ class MissionsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Missions',
+                        'Targets',
                         style: AppTheme.displayStyle
                             .copyWith(color: AppTheme.text),
                       ),
@@ -73,7 +73,7 @@ class MissionsScreen extends StatelessWidget {
                           labelStyle: AppTheme.buttonStyle,
                           unselectedLabelStyle: AppTheme.bodyStyle,
                           tabs: const [
-                            Tab(text: 'Missions'),
+                            Tab(text: 'Targets'),
                             Tab(text: 'Chains'),
                           ],
                         ),

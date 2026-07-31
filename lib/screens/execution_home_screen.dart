@@ -163,13 +163,32 @@ class _ContinueMissionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inProgress = planner.todayEntries
-        .where((e) => e.status == PlannerEntryStatus.inProgress)
-        .toList();
+    final appState = Provider.of<AppState>(context);
+    final activeSession = appState.activeSession;
+    final activeMission = appState.activeMission;
 
-    if (inProgress.isEmpty) return const SizedBox.shrink();
+    final String? title;
+    final int duration;
+    final bool isPaused;
 
-    final entry = inProgress.first;
+    if (activeSession != null) {
+      title = activeSession.targetTitle;
+      duration = activeSession.estimatedDurationMinutes;
+      isPaused = activeSession.isPaused;
+    } else if (activeMission != null) {
+      title = activeMission.name;
+      duration = activeMission.estimatedDurationMinutes;
+      isPaused = activeMission.isPaused;
+    } else {
+      final inProgress = planner.todayEntries
+          .where((e) => e.status == PlannerEntryStatus.inProgress)
+          .toList();
+      if (inProgress.isEmpty) return const SizedBox.shrink();
+      final entry = inProgress.first;
+      title = entry.targetName;
+      duration = entry.estimatedDurationMinutes;
+      isPaused = false;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.sp24),
@@ -189,8 +208,11 @@ class _ContinueMissionBanner extends StatelessWidget {
                 color: AppTheme.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.play_circle_rounded,
-                  color: AppTheme.accent, size: 22),
+              child: Icon(
+                isPaused ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
+                color: AppTheme.accent,
+                size: 22,
+              ),
             ),
             const SizedBox(width: AppTheme.sp16),
             Expanded(
@@ -198,23 +220,23 @@ class _ContinueMissionBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CONTINUE MISSION',
+                    isPaused ? 'PAUSED MISSION' : 'CONTINUE MISSION',
                     style: AppTheme.captionStyle.copyWith(
-                      color: AppTheme.accent,
+                      color: isPaused ? AppTheme.warning : AppTheme.accent,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    entry.targetName,
+                    title,
                     style: AppTheme.titleStyle.copyWith(color: AppTheme.text),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${entry.estimatedDurationMinutes} min estimated',
+                    '$duration min estimated',
                     style: AppTheme.captionStyle
                         .copyWith(color: AppTheme.textMuted),
                   ),
@@ -223,7 +245,7 @@ class _ContinueMissionBanner extends StatelessWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accent,
+                backgroundColor: isPaused ? AppTheme.warning : AppTheme.accent,
                 foregroundColor: const Color(0xFF0F172A),
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppTheme.sp16, vertical: 10),
@@ -232,14 +254,11 @@ class _ContinueMissionBanner extends StatelessWidget {
                 elevation: 0,
               ),
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Switch to Planner tab to resume.'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
+                if (isPaused) {
+                  appState.resumeSession();
+                }
               },
-              child: const Text('Resume'),
+              child: Text(isPaused ? 'Resume' : 'Active'),
             ),
           ],
         ),

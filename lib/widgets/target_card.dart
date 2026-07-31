@@ -9,8 +9,8 @@ import '../providers/app_state.dart';
 import '../providers/behavior_provider.dart';
 import '../screens/mission_workspace_screen.dart';
 import '../services/mission_details_service.dart';
+import '../services/mission_launcher.dart';
 import 'highlight_text.dart';
-import 'mission_setup_sheet.dart';
 
 // ── Mission Card ──────────────────────────────────────────────────────────────
 
@@ -138,6 +138,11 @@ class MissionCard extends StatelessWidget {
                               // Row 1: category + priority → health dot + status
                               Row(
                                 children: [
+                                  _MiniChip(
+                                    label: item.type == TargetType.checklist ? 'CHECKLIST' : 'PROBLEM',
+                                    color: item.type == TargetType.checklist ? AppTheme.feature : AppTheme.accent,
+                                  ),
+                                  const SizedBox(width: 5),
                                   if (category != null) ...[
                                     _MiniChip(
                                       label: category.name,
@@ -326,15 +331,10 @@ class _CardActionButton extends StatelessWidget {
             ),
           );
     } else {
-      btnColor = AppTheme.success;
+      btnColor = AppTheme.accent;
       btnIcon = Icons.rocket_launch_rounded;
-      btnLabel = 'Start';
-      onTap = () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => MissionSetupSheet(target: item),
-          );
+      btnLabel = 'Start Mission';
+      onTap = () => MissionLauncher.showLaunchDialog(context, item);
     }
 
     return GestureDetector(

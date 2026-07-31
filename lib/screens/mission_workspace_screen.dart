@@ -15,6 +15,7 @@ import '../providers/behavior_provider.dart';
 import '../providers/planner_provider.dart';
 import '../services/mission_details_service.dart';
 import '../services/mission_history_service.dart';
+import '../services/mission_launcher.dart';
 import '../services/mission_statistics_service.dart';
 import '../widgets/mission_setup_sheet.dart';
 import 'mission_chains_screen.dart';
@@ -710,13 +711,8 @@ class _MissionWorkspaceScreenState extends State<MissionWorkspaceScreen> {
                                 Icons.rocket_launch_rounded,
                                 size: 20),
                             label: const Text('Start Mission'),
-                            onPressed: () => showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) =>
-                                  MissionSetupSheet(target: target),
-                            ),
+                            onPressed: () =>
+                                MissionLauncher.showLaunchDialog(context, target),
                           ),
                         ),
                     ],

@@ -7,6 +7,7 @@ import '../models/checklist_item.dart';
 import '../models/target_item.dart';
 import '../models/category_item.dart';
 import '../models/mission.dart';
+import '../models/mission_session.dart';
 import '../models/mission_chain.dart';
 import '../models/mission_chain_history.dart';
 import '../models/mission_chain_statistics.dart';
@@ -44,6 +45,7 @@ class AppState extends ChangeNotifier {
   static const String _defaultCountKey  = 'default_target_count';
   static const String _animationsOnKey  = 'animations_on';
   static const String _activeMissionKey = 'active_mission';
+  static const String _activeSessionKey = 'active_mission_session';
   static const String _missionStatsKey  = 'mission_stats';
 
   static const String _totalXpKey = 'prod_total_xp';
@@ -78,6 +80,7 @@ class AppState extends ChangeNotifier {
   bool                            _animationsOn      = true;
 
   Mission?                        _activeMission;
+  MissionSession?                 _activeSession;
   MissionStatistics               _missionStats = MissionStatistics(
     totalMissionsStarted: 0,
     totalMissionsCompleted: 0,
@@ -119,6 +122,7 @@ class AppState extends ChangeNotifier {
   String?                      get defaultCategoryId => _defaultCategoryId;
   int                          get defaultTargetCount => _defaultTargetCount;
   bool                         get animationsOn      => _animationsOn;
+  MissionSession?              get activeSession     => _activeSession;
   Mission?                     get activeMission     => _activeMission;
   MissionStatistics            get missionStats      => _missionStats;
 
@@ -337,13 +341,20 @@ class AppState extends ChangeNotifier {
       }
     }
     // Active Mission
-
     final rawActiveMission = prefs.getString(_activeMissionKey);
     if (rawActiveMission != null) {
       _activeMission = Mission.fromJson(jsonDecode(rawActiveMission) as Map<String, dynamic>);
     } else {
       _activeMission = null;
     }
+
+    final rawActiveSession = prefs.getString(_activeSessionKey);
+    if (rawActiveSession != null) {
+      _activeSession = MissionSession.fromJson(jsonDecode(rawActiveSession) as Map<String, dynamic>);
+    } else {
+      _activeSession = null;
+    }
+
 
     // Mission Statistics
     final rawMissionStats = prefs.getString(_missionStatsKey);
@@ -762,6 +773,227 @@ class AppState extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  // ── MissionSession Lifecycle Methods ─────────────────────────────────────
+  Future<void> startSession(MissionSession session) async {
+    _activeSession = session;
+    final target = _targets.cast<TargetItem?>().firstWhere(
+          (t) => t?.id == session.targetId,
+          orElse: () => null,
+        );
+    final targetName = target?.title ?? session.targetTitle;
+
+    _activeMission = Mission(
+      id: session.id,
+      targetId: session.targetId,
+      name: 'Mission: $targetName',
+      targetCount: target?.targetCount ?? session.selectedGoalCount,
+      startSolvedCount: target?.solvedCount ?? 0,
+      solvedCount: target?.solvedCount ?? 0,
+      startTime: session.startTime,
+      estimatedDurationMinutes: session.estimatedDurationMinutes,
+      type: MissionType.normal,
+      status: MissionStatus.active,
+      isPaused: false,
+      accumulatedSeconds: 0,
+      lastResumeTime: session.startTime,
+      interruptionCount: 0,
+    );
+
+    _missionStats = _missionStats.copyWith(
+      totalMissionsStarted: _missionStats.totalMissionsStarted + 1,
+    );
+
+    await _saveActiveSession();
+    await _saveActiveMission();
+    await _saveMissionStats();
+
+    await MissionHistoryService.recordEvent(
+      targetId: session.targetId,
+      type: MissionTimelineEventType.started,
+      description: 'Mission session started for "$targetName".',
+    );
+    notifyListeners();
+  }
+
+  Future<void> pauseSession() async {
+    if (_activeSession == null || _activeSession!.isPaused) return;
+    final now = DateTime.now();
+    final elapsed = _activeSession!.lastResumeTime == null
+        ? 0
+        : now.difference(_activeSession!.lastResumeTime!).inSeconds;
+
+    _activeSession = _activeSession!.copyWith(
+      isPaused: true,
+      accumulatedSeconds: _activeSession!.accumulatedSeconds + elapsed,
+      lastResumeTime: null,
+      interruptionCount: _activeSession!.interruptionCount + 1,
+    );
+
+    if (_activeMission != null) {
+      _activeMission = _activeMission!.copyWith(
+        isPaused: true,
+        accumulatedSeconds: _activeSession!.accumulatedSeconds,
+        lastResumeTime: null,
+        interruptionCount: _activeSession!.interruptionCount,
+      );
+      await _saveActiveMission();
+    }
+
+    await _saveActiveSession();
+    await MissionHistoryService.recordEvent(
+      targetId: _activeSession!.targetId,
+      type: MissionTimelineEventType.paused,
+      description: 'Mission paused.',
+    );
+    notifyListeners();
+  }
+
+  Future<void> resumeSession() async {
+    if (_activeSession == null || !_activeSession!.isPaused) return;
+    final now = DateTime.now();
+    _activeSession = _activeSession!.copyWith(
+      isPaused: false,
+      lastResumeTime: now,
+    );
+
+    if (_activeMission != null) {
+      _activeMission = _activeMission!.copyWith(
+        isPaused: false,
+        lastResumeTime: now,
+      );
+      await _saveActiveMission();
+    }
+
+    await _saveActiveSession();
+    await MissionHistoryService.recordEvent(
+      targetId: _activeSession!.targetId,
+      type: MissionTimelineEventType.resumed,
+      description: 'Mission resumed.',
+    );
+    notifyListeners();
+  }
+
+  Future<void> completeActiveSession({
+    int solvedDelta = 0,
+    List<String> completedChecklistIds = const [],
+  }) async {
+    if (_activeSession == null) return;
+    final session = _activeSession!;
+    final now = DateTime.now();
+
+    final finalAccumulated = session.accumulatedSeconds +
+        (session.isPaused || session.lastResumeTime == null
+            ? 0
+            : now.difference(session.lastResumeTime!).inSeconds);
+
+    final targetIndex = _targets.indexWhere((t) => t.id == session.targetId);
+
+    int solvedIncrement = solvedDelta;
+    if (solvedIncrement <= 0) {
+      solvedIncrement = session.selectedGoalCount;
+    }
+
+    if (targetIndex != -1) {
+      final target = _targets[targetIndex];
+      if (target.type == TargetType.problem) {
+        final newSolved =
+            (target.solvedCount + solvedIncrement).clamp(0, target.targetCount);
+        _targets[targetIndex] = target.copyWith(solvedCount: newSolved);
+      } else {
+        final updatedItems = target.checklistSubItems.map((item) {
+          if (completedChecklistIds.contains(item.id) ||
+              session.selectedItemIds.contains(item.id)) {
+            return item.copyWith(completed: true);
+          }
+          return item;
+        }).toList();
+        _targets[targetIndex] = target.copyWith(
+          checklistSubItems: updatedItems,
+          solvedCount: updatedItems.where((i) => i.completed).length,
+        );
+      }
+      await _saveTargets();
+    }
+
+    int focusScore =
+        (100 - (session.interruptionCount * 15)).clamp(0, 100);
+    final estimatedSeconds = session.estimatedDurationMinutes * 60;
+    if (finalAccumulated <= estimatedSeconds) {
+      focusScore = (focusScore + 10).clamp(0, 100);
+    }
+    _disciplineScore =
+        (_disciplineScore + 5 - (session.interruptionCount * 2)).clamp(0, 100);
+
+    int xpEarned = 100;
+    if (session.interruptionCount == 0) xpEarned += 50;
+    if (finalAccumulated <= estimatedSeconds) xpEarned += 25;
+
+    _totalXp += xpEarned;
+    int xpNeeded = _level * 1000;
+    while (_totalXp >= xpNeeded) {
+      _level += 1;
+      xpNeeded = _level * 1000;
+    }
+
+    final historyItem = MissionHistoryItem(
+      id: session.id,
+      targetId: session.targetId,
+      name: 'Session: ${session.targetTitle}',
+      type: MissionType.normal,
+      startTime: session.startTime,
+      endTime: now,
+      durationSeconds: finalAccumulated,
+      problemsSolved: solvedIncrement,
+      interruptions: session.interruptionCount,
+      status: 'completed',
+      xpEarned: xpEarned,
+      focusScore: focusScore,
+    );
+    _missionHistory.add(historyItem);
+    _checkAchievements();
+    await _saveProductivityData();
+
+    _missionStats = _missionStats.copyWith(
+      totalMissionsCompleted: _missionStats.totalMissionsCompleted + 1,
+      totalDurationSeconds:
+          _missionStats.totalDurationSeconds + finalAccumulated,
+    );
+    await _saveMissionStats();
+
+    _activeSession = null;
+    _activeMission = null;
+    await _saveActiveSession();
+    await _saveActiveMission();
+
+    await MissionHistoryService.recordEvent(
+      targetId: session.targetId,
+      type: MissionTimelineEventType.completed,
+      description:
+          'Mission session completed! (+ $solvedIncrement progress)',
+    );
+
+    notifyListeners();
+  }
+
+  Future<void> cancelActiveSession() async {
+    if (_activeSession == null) return;
+    _activeSession = null;
+    _activeMission = null;
+    await _saveActiveSession();
+    await _saveActiveMission();
+    notifyListeners();
+  }
+
+  Future<void> _saveActiveSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_activeSession == null) {
+      await prefs.remove(_activeSessionKey);
+    } else {
+      await prefs.setString(
+          _activeSessionKey, jsonEncode(_activeSession!.toJson()));
+    }
   }
 
   Future<void> startMission(String targetId, String name, int estimatedDurationMinutes, MissionType type) async {

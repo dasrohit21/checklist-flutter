@@ -15,6 +15,7 @@ import '../providers/behavior_provider.dart';
 import '../providers/coach_provider.dart';
 import '../providers/learning_provider.dart';
 import '../providers/planner_provider.dart';
+import '../services/mission_launcher.dart';
 import '../services/planner_service.dart';
 import '../widgets/planner_mission_card.dart';
 import 'coach_settings_screen.dart';
@@ -823,19 +824,8 @@ class _EntryCardLoaderState extends State<_EntryCardLoader> {
       PlannerEntryStatus.inProgress,
     );
 
-    // Show the existing MissionSetupSheet.
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _PlannerMissionSetup(
-        target: target,
-        entry: widget.entry,
-        missionContext: _context,
-        appState: widget.appState,
-        planner: widget.planner,
-      ),
-    );
+    // Launch target mission session dialog
+    MissionLauncher.showLaunchDialog(context, target);
   }
 }
 

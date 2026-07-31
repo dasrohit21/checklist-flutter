@@ -10,6 +10,7 @@ import '../models/mission.dart';
 
 import '../models/target_item.dart';
 import '../providers/app_state.dart';
+import '../services/mission_session_service.dart';
 
 
 class MissionScreen extends StatefulWidget {
@@ -858,7 +859,7 @@ class _MissionScreenState extends State<MissionScreen> with WidgetsBindingObserv
                     elevation: 4,
                   ),
                   onPressed: () async {
-                    await appState.clearActiveMission();
+                    await MissionSessionService.completeSession(context);
                   },
                   child: const Text(
                     'Continue',
